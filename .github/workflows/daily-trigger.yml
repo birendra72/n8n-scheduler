@@ -1,0 +1,48 @@
+name: Trigger n8n Daily Workflow
+
+on:
+  schedule:
+    # Runs at 2:00 AM IST (20:30 UTC previous day)
+    # IST = UTC + 5:30, so 2:00 AM IST = 20:30 UTC (previous day)
+    - cron: '30 20 * * *'
+  
+  # Allow manual trigger from GitHub UI for testing
+  workflow_dispatch:
+
+jobs:
+  trigger-n8n:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger n8n Webhook
+        run: |
+          echo "🚀 Triggering n8n workflow at $(date)"
+          
+          response=$(curl -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-webhook-secret: ${{ secrets.WEBHOOK_SECRET }}" \
+            -d '{"source": "github-actions", "trigger_time": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' \
+            -w "\n%{http_code}" \
+            -s \
+            "${{ secrets.N8N_WEBHOOK_URL }}")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "📊 HTTP Status: $http_code"
+          echo "📄 Response: $body"
+          
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ Successfully triggered n8n workflow!"
+          else
+            echo "❌ Failed to trigger n8n workflow"
+            exit 1
+          fi
+      
+      - name: Workflow Summary
+        run: |
+          echo "### ✅ n8n Workflow Triggered Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "**Timezone:** IST (UTC+5:30)" >> $GITHUB_STEP_SUMMARY
+          echo "**Next run:** Tomorrow at 2:00 AM IST" >> $GITHUB_STEP_SUMMARY
