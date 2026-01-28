@@ -19,12 +19,8 @@ jobs:
           echo "🚀 Triggering n8n workflow at $(date)"
           
           response=$(curl -X POST \
-            -H "Content-Type: application/json" \
-            -H "x-webhook-secret: ${{ secrets.WEBHOOK_SECRET }}" \
-            -d '{"source": "github-actions", "trigger_time": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' \
-            -w "\n%{http_code}" \
-            -s \
-            "${{ secrets.N8N_WEBHOOK_URL }}")
+                          -u "${{ secrets.N8N_BASIC_AUTH_USER }}:${{ secrets.N8N_BASIC_AUTH_PASSWORD }}" \
+                          "${{ secrets.N8N_WEBHOOK_URL }}")
           
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
