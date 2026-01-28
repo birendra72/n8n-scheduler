@@ -17,21 +17,38 @@ jobs:
       - name: Trigger n8n Webhook
         run: |
           echo "🚀 Triggering n8n workflow at $(date)"
+          echo ""
           
+          # Make the request and capture both body and status code
           response=$(curl -X POST \
-                          -u "${{ secrets.N8N_BASIC_AUTH_USER }}:${{ secrets.N8N_BASIC_AUTH_PASSWORD }}" \
-                          "${{ secrets.N8N_WEBHOOK_URL }}")
+            -u "${{ secrets.N8N_BASIC_AUTH_USER }}:${{ secrets.N8N_BASIC_AUTH_PASSWORD }}" \
+            -H "Content-Type: application/json" \
+            -d '{"source": "github-actions", "trigger_time": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' \
+            -w "\n%{http_code}" \
+            -s \
+            "${{ secrets.N8N_WEBHOOK_URL }}")
           
+          # Extract HTTP status code (last line)
           http_code=$(echo "$response" | tail -n1)
+          
+          # Extract body (everything except last line)
           body=$(echo "$response" | sed '$d')
           
-          echo "📊 HTTP Status: $http_code"
-          echo "📄 Response: $body"
+          echo "📊 HTTP Status Code: $http_code"
+          echo "📄 Response Body: $body"
+          echo ""
           
-          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+          # Check if status code is in 2xx range
+          if [ "$http_code" -ge 200 ] 2>/dev/null && [ "$http_code" -lt 300 ] 2>/dev/null; then
             echo "✅ Successfully triggered n8n workflow!"
           else
             echo "❌ Failed to trigger n8n workflow"
+            echo "Error: Received HTTP status $http_code"
+            echo ""
+            echo "🔍 Troubleshooting:"
+            echo "- Verify N8N_BASIC_AUTH_USER and N8N_BASIC_AUTH_PASSWORD secrets are set correctly"
+            echo "- Verify N8N_WEBHOOK_URL is correct and includes the full webhook path"
+            echo "- Check if your workflow is Published in n8n"
             exit 1
           fi
       
